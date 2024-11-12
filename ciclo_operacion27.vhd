@@ -24,8 +24,7 @@ entity ciclo_operacion27 is
         motor_llenado       : out std_logic;  -- Activa motor de llenado
         motor_vaciado       : out std_logic;  -- Activa motor de vaciado
         motor_tambor        : out std_logic
-		  --_pwm1   : out std_logic;  -- Señal de PWM1 para el motor del tambor
-        --motor_tambor_pwm2   : out std_logic   -- Señal de PWM2 para el motor del tambor
+		 
     );
 end entity;
 
@@ -56,7 +55,6 @@ begin
         habilitar_direccion <= '0';
         habilitar_displays <= '0';
         habilitar_contador <= '0';
-        --tiempo_operacion <= "0000";
 		  tiempo_operacion <= tiempo_rom;  -- Obtiene el tiempo desde la ROM
 
 
@@ -64,68 +62,57 @@ begin
         motor_llenado <= '0';
         motor_vaciado <= '0';
         motor_tambor  <= '0';
-		  --_pwm1 <= '0';
-        --motor_tambor_pwm2 <= '0';
-
+		  
+		  
         case state is
             when INICIAL =>
                 next_state <= LLENADO;
                 habilitar_contador <= '1';
-                --tiempo_operacion <= "0010";
+                
 
             when LLENADO =>
                 motor_llenado <= '1';  -- Activar motor de llenado
                 habilitar_displays <= '1';
                 habilitar_contador <= '1';
-                --tiempo_operacion <= "1110";
                 next_state <= LAVADO;
 
             when LAVADO =>
                 habilitar_velocidad <= '1';
                 habilitar_direccion <= '1';
                 habilitar_displays <= '1';
-                --tiempo_operacion <= "1011";
                 direccion <= '1';  -- Derecha
                 velocidad <= '0';  -- Lento
                 motor_tambor <= '1';
-					 --_pwm1 <= '1';  -- Activar tambor en dirección derecha, velocidad lenta
                 next_state <= VACIADO;
 
             when VACIADO =>
                 motor_vaciado <= '1';  -- Activar motor de vaciado
                 habilitar_displays <= '1';
                 habilitar_contador <= '1';
-                --tiempo_operacion <= "0101";
                 next_state <= ENJUAGUE;
 
             when ENJUAGUE =>
                 habilitar_velocidad <= '1';
                 habilitar_direccion <= '1';
                 habilitar_displays <= '1';
-                --tiempo_operacion <= "0110";
                 direccion <= '0';  -- Izquierda
                 velocidad <= '0';  -- Lento
 					 motor_tambor <= '1';
-                --motor_tambor_pwm2 <= '1';  -- Activar tambor en dirección izquierda, velocidad lenta
                 next_state <= CENTRIFUGADO;
 
             when CENTRIFUGADO =>
                 habilitar_velocidad <= '1';
                 habilitar_direccion <= '1';
-                --tiempo_operacion <= "0111";
                 direccion <= '0';  -- Izquierda
                 velocidad <= '1';  -- Rápido
 					 motor_tambor <= '1';
-                --motor_tambor_pwm2 <= '1';  -- Activar tambor en dirección izquierda, velocidad rápida
                 next_state <= TERMINADO;
 
             when TERMINADO =>
                 alarma <= '1';  -- Activar alarma
-                --tiempo_operacion <= "0000";
                 next_state <= TERMINADO;
 
             when PAUSA =>
-                --tiempo_operacion <= "0000";
                 next_state <= PAUSA;
 
             when others =>
@@ -137,4 +124,6 @@ begin
     ciclo <= std_logic_vector(to_unsigned(state'pos(state), 3));
 
 end Behavioral;
+
+
 
