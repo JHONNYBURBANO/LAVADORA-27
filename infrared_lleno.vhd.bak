@@ -1,0 +1,22 @@
+LIBRARY IEEE;
+USE ieee.std_logic_1164.ALL;
+USE ieee.numeric_std.all;
+
+entity infrared_lleno is
+
+port ( lsensorin : in std_logic;
+	    lsensorout : out std_logic);
+end infrared_lleno;
+
+
+architecture architecture_IR of infrared_lleno is
+begin
+    process(lsensorin)
+		 begin
+			  if lsensorin = '1' then
+					lsensorout <= '1';
+			  else
+					lsensorout <= '0';
+			  end if; 
+    end process;
+end architecture_IR;

@@ -1,0 +1,40 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity contador27 is
+    port (
+        Clock     : in  std_logic;                          -- Señal de reloj
+        Reset     : in  std_logic;                          -- Señal de reset
+        EN        : in  std_logic;                          -- Enable (habilita el conteo)
+        Load      : in  std_logic;                          -- Carga un valor específico
+        CNT_in    : in  std_logic_vector(3 downto 0);       -- Valor de entrada para cargar en el contador
+        CNT_units : out std_logic_vector(3 downto 0);       -- Salida para unidades (display de 7 segmentos)
+        CNT_tens  : out std_logic_vector(3 downto 0)        -- Salida para decenas (display de 7 segmentos)
+    );
+end entity;
+
+architecture Behavioral of contador27 is
+    signal CNT_int : integer range 0 to 99 := 0;  -- Inicializar el contador en 0
+begin
+    process (Clock, Reset)
+    begin
+        if Reset = '1' then
+            CNT_int <= 0;  -- Resetea el contador a 0 cuando se activa la señal de reset
+        elsif rising_edge(Clock) then
+            if Load = '1' then
+                CNT_int <= to_integer(unsigned(CNT_in));  -- Cargar un valor específico en el contador
+            elsif EN = '1' then
+                if CNT_int = 0 then
+                    CNT_int <= 0;  -- Si llega a 0, se mantiene en 0 (o puede pasar al siguiente ciclo)
+                else
+                    CNT_int <= CNT_int - 1;  -- Decrementa el contador en cada ciclo de reloj
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- Separar el valor del contador en unidades y decenas para mostrarlas en displays de 7 segmentos
+    CNT_units <= std_logic_vector(to_unsigned(CNT_int mod 10, 4));  -- Unidades
+    CNT_tens  <= std_logic_vector(to_unsigned(CNT_int / 10, 4));    -- Decenas
+end architecture;

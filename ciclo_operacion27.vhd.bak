@@ -1,0 +1,148 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity ciclo_operacion27 is
+    port (
+        encendido       : in  std_logic;
+        lleno_vacio     : in  std_logic;
+        tapa_cerrada    : in  std_logic;
+        clk             : in  std_logic;
+        ciclo           : out std_logic_vector(2 downto 0);  -- Indica el ciclo actual
+        alarma          : out std_logic;
+        direccion       : out std_logic_vector(1 downto 0);  -- D/I (01 para derecha, 10 para izquierda)
+        velocidad       : out std_logic;                     -- Rápido (H) o Lento (L)
+        tiempo_unidades : out std_logic_vector(6 downto 0);  -- Salida del display de 7 segmentos (unidades)
+        tiempo_decenas  : out std_logic_vector(6 downto 0)   -- Salida del display de 7 segmentos (decenas)
+    );
+end entity;
+
+architecture Behavioral of ciclo_operacion27 is
+    type state_type is (INICIAL, LLENADO, LAVADO, VACIADO, ENJUAGUE, CENTRIFUGADO, TERMINADO, PAUSA);
+    signal state, next_state : state_type := INICIAL;  -- Estado inicial
+    signal contador_unidades : std_logic_vector(3 downto 0);  -- Unidades del contador
+    signal contador_decenas  : std_logic_vector(3 downto 0);  -- Decenas del contador
+    signal habilitar_contador : std_logic := '0';              -- Señal para habilitar el contador descendente
+    signal contador_reset : std_logic := '0';                  -- Señal para resetear el contador
+    signal contador_valor : std_logic_vector(3 downto 0);      -- Valor inicial del contador
+
+begin
+
+    -- Proceso de control de estados y lógica para apagar displays en INICIAL y TERMINADO
+    process(clk, encendido, lleno_vacio, tapa_cerrada)
+    begin
+        if rising_edge(clk) then
+            if encendido = '1' and lleno_vacio = '1' and tapa_cerrada = '1' then
+                state <= next_state;  -- Cambia al siguiente estado
+
+                -- Control del contador descendente
+                if habilitar_contador = '1' then
+                    contador_reset <= '0';  -- Activar el contador
+                else
+                    contador_reset <= '1';  -- Resetear el contador si no está habilitado
+                end if;
+
+                -- Resetea el contador si hay un cambio de estado
+                if state /= next_state then
+                    contador_reset <= '1';  -- Resetea el contador
+                end if;
+            end if;
+        end if;
+    end process;
+
+    -- Proceso de transición de estados y lógica de displays
+    process(state)
+    begin
+        -- Valores por defecto
+        velocidad <= '0';  -- Lento por defecto (apagado en estados no relevantes)
+        direccion <= "00"; -- Dirección neutra (apagado en estados no relevantes)
+        alarma <= '0';     -- Apagar la alarma por defecto
+        habilitar_contador <= '0';  -- Apagar el contador por defecto
+
+        case state is
+            when INICIAL =>
+                if encendido = '1' and lleno_vacio = '1' then
+                    next_state <= LLENADO;
+                else
+                    next_state <= INICIAL;
+                end if;
+                -- Apagar displays de tiempo en INICIAL
+                tiempo_unidades <= "1111111";  -- Apagar display de unidades
+                tiempo_decenas  <= "1111111";  -- Apagar display de decenas
+
+            when LLENADO =>
+                if tapa_cerrada = '1' then
+                    habilitar_contador <= '1';  -- Habilitar el contador para 30 segundos
+                    contador_valor <= std_logic_vector(to_unsigned(30, 4));  -- 30 segundos
+                end if;
+                -- Mostrar el tiempo del contador
+                tiempo_unidades <= contador_unidades;
+                tiempo_decenas  <= contador_decenas;
+
+            when LAVADO =>
+                if tapa_cerrada = '1' then
+                    habilitar_contador <= '1';  -- Habilitar el contador para 90 segundos
+                    contador_valor <= std_logic_vector(to_unsigned(90, 4));  -- 90 segundos
+                end if;
+                -- Mostrar el tiempo del contador
+                tiempo_unidades <= contador_unidades;
+                tiempo_decenas  <= contador_decenas;
+                --if contador_unidades mod 2 = 0 then
+					 if to_integer(unsigned(contador_unidades)) mod 2 = 0 then
+                    direccion <= "01";  -- Derecha
+                else
+                    direccion <= "10";  -- Izquierda
+                end if;
+
+            when VACIADO =>
+                if tapa_cerrada = '1' then
+                    habilitar_contador <= '1';  -- Habilitar el contador para 45 segundos
+                    contador_valor <= std_logic_vector(to_unsigned(45, 4));  -- 45 segundos
+                end if;
+                -- Mostrar el tiempo del contador
+                tiempo_unidades <= contador_unidades;
+                tiempo_decenas  <= contador_decenas;
+
+            when ENJUAGUE =>
+                if tapa_cerrada = '1' then
+                    habilitar_contador <= '1';  -- Habilitar el contador para 60 segundos
+                    contador_valor <= std_logic_vector(to_unsigned(60, 4));  -- 60 segundos
+                end if;
+                -- Mostrar el tiempo del contador
+                tiempo_unidades <= contador_unidades;
+                tiempo_decenas  <= contador_decenas;
+
+            when CENTRIFUGADO =>
+                if tapa_cerrada = '1' then
+                    habilitar_contador <= '1';  -- Habilitar el contador para 75 segundos
+                    contador_valor <= std_logic_vector(to_unsigned(75, 4));  -- 75 segundos
+                end if;
+                -- Mostrar el tiempo del contador
+                tiempo_unidades <= contador_unidades;
+                tiempo_decenas  <= contador_decenas;
+
+            when TERMINADO =>
+                alarma <= '1';  -- Activa alarma
+                -- Apagar displays de tiempo en TERMINADO
+                tiempo_unidades <= "1111111";  -- Apagar display de unidades
+                tiempo_decenas  <= "1111111";  -- Apagar display de decenas
+                next_state <= TERMINADO;
+
+            when PAUSA =>
+                -- Detener el contador en estado de PAUSA
+                habilitar_contador <= '0';
+                if tapa_cerrada = '1' then
+                    next_state <= state;  -- Continúa en el estado anterior
+                else
+                    next_state <= PAUSA;
+                end if;
+
+            when others =>
+                next_state <= INICIAL;
+        end case;
+    end process;
+
+    -- Asignar el ciclo actual para otras lógicas
+    ciclo <= std_logic_vector(to_unsigned(state'pos(state), 3));
+end Behavioral;
+

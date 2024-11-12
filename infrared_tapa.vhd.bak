@@ -1,0 +1,22 @@
+LIBRARY IEEE;
+USE ieee.std_logic_1164.ALL;
+USE ieee.numeric_std.all;
+
+entity infrared_tapa is
+
+port ( tsensorin : in std_logic;
+	    tsensorout : out std_logic);
+end infrared_tapa;
+
+
+architecture architecture_IR of infrared_tapa is
+begin
+    process(tsensorin)
+		 begin
+			  if tsensorin = '1' then
+					tsensorout <= '1';
+			  else
+					tsensorout <= '0';
+			  end if; 
+    end process;
+end architecture_IR;

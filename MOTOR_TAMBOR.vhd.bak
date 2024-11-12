@@ -1,0 +1,56 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity MOTOR_TAMBOR is
+    port( 
+        CLK : in std_logic;
+        TSW2, TSW1, TSW0 : in std_logic;
+        TPWM1, TPWM2    : out std_logic
+    );
+end MOTOR_TAMBOR;
+
+architecture Behavioral of MOTOR_TAMBOR is
+    signal COUNT : integer range 0 to 50_000 := 0;
+    signal SPEED : integer := 50_000;
+begin
+
+    -- Proceso para ajustar la velocidad del motor según SW0 y SW1
+    process(TSW0, TSW1)
+    begin
+        if (TSW1 = '1' and TSW0 = '1') then
+            SPEED <= 0;          -- Motor apagado
+        elsif (TSW1 = '1' and TSW0 = '0') then
+            SPEED <= 27_000;     -- Velocidad baja
+        elsif (TSW1 = '0' and TSW0 = '1') then
+            SPEED <= 33_000;     -- Velocidad media
+        else
+            SPEED <= 50_000;     -- Velocidad alta
+        end if;
+    end process;
+
+    -- Proceso principal para generar la señal PWM y controlar la dirección
+    process(CLK)
+    begin
+        if rising_edge(CLK) then
+            COUNT <= COUNT + 1;
+            
+            if COUNT = 49_999 then
+                COUNT <= 0;  -- Reinicia el contador al final del periodo PWM
+            end if;
+            
+            if COUNT < SPEED then
+                if TSW2 = '0' then
+                    TPWM2 <= '0';
+                    TPWM1 <= '1';  -- Dirección 1
+                else
+                    TPWM1 <= '0';
+                    TPWM2 <= '1';  -- Dirección 2
+                end if;
+            else
+                TPWM1 <= '0';
+                TPWM2 <= '0';  -- Motor apagado en esta parte del ciclo PWM
+            end if;
+        end if;
+    end process;
+
+end Behavioral;

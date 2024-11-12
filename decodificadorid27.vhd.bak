@@ -1,0 +1,32 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+-- Entidad para el decodificador de I/D
+entity decodificadorid27 is
+    port (
+        direccion : in std_logic;                    -- Entrada de dirección (0: Izquierda, 1: Derecha)
+        ciclo     : in std_logic_vector(2 downto 0); -- Ciclo actual de la lavadora
+        seg_out   : out std_logic_vector(6 downto 0) -- Salida al display de 7 segmentos
+    );
+end entity decodificadorid27;
+
+-- Arquitectura del decodificador de I/D
+architecture Behavioral of decodificadorid27 is
+begin
+    process(direccion, ciclo)
+    begin
+        -- Si estamos en los ciclos de lavado, enjuague o centrifugado
+        if ciclo = "010" or ciclo = "100" or ciclo = "101" then  -- Lavado, Enjuague, Centrifugado
+            if direccion = '0' then
+                -- Mostrar la letra I (1111001 para 7 segmentos)
+                seg_out <= "1111001";
+            else
+                -- Mostrar la letra D (1011110 para 7 segmentos)
+                seg_out <= "1011110";
+            end if;
+        else
+            -- Apagar el display si no está en lavado, enjuague o centrifugado
+            seg_out <= "1111111";  -- Apagar el display
+        end if;
+    end process;
+end architecture Behavioral;

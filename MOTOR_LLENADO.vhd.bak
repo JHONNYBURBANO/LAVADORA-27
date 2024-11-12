@@ -1,0 +1,56 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+
+entity MOTOR_LLENADO is
+    port( 
+        CLK : in std_logic;
+        LSW2, LSW1, LSW0 : in std_logic;
+        LPWM1, LPWM2    : out std_logic
+    );
+end MOTOR_LLENADO;
+
+architecture Behavioral of MOTOR_LLENADO is
+    signal COUNT : integer range 0 to 50_000 := 0;
+    signal SPEED : integer := 50_000;
+begin
+
+    -- Proceso para ajustar la velocidad del motor según SW0 y SW1
+    process(LSW0, LSW1)
+    begin
+        if (LSW1 = '1' and LSW0 = '1') then
+            SPEED <= 0;          -- Motor apagado
+        elsif (LSW1 = '1' and LSW0 = '0') then
+            SPEED <= 27_000;     -- Velocidad baja
+        elsif (LSW1 = '0' and LSW0 = '1') then
+            SPEED <= 33_000;     -- Velocidad media
+        else
+            SPEED <= 50_000;     -- Velocidad alta
+        end if;
+    end process;
+
+    -- Proceso principal para generar la señal PWM y controlar la dirección
+    process(CLK)
+    begin
+        if rising_edge(CLK) then
+            COUNT <= COUNT + 1;
+            
+            if COUNT = 49_999 then
+                COUNT <= 0;  -- Reinicia el contador al final del periodo PWM
+            end if;
+            
+            if COUNT < SPEED then
+                if LSW2 = '0' then
+                    LPWM2 <= '0';
+                    LPWM1 <= '1';  -- Dirección 1
+                else
+                    LPWM1 <= '0';
+                    LPWM2 <= '1';  -- Dirección 2
+                end if;
+            else
+                LPWM1 <= '0';
+                LPWM2 <= '0';  -- Motor apagado en esta parte del ciclo PWM
+            end if;
+        end if;
+    end process;
+
+end Behavioral;
