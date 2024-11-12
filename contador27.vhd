@@ -44,3 +44,4 @@ begin
     CNT_tens  <= std_logic_vector(to_unsigned((CNT_int / 10) mod 10, 4));  -- Decenas
 
 end Behavioral;
+
