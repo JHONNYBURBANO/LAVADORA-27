@@ -1,0 +1,209 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+library lava27;
+
+entity lavadora27 is
+    port (
+        clk_50MHz       : in std_logic;       
+        encendido       : in std_logic;       
+        sensorin_tapa   : in std_logic;       -- Entrada desde el sensor infrarrojo para la tapa
+        sensorin_lleno  : in std_logic;       -- Entrada desde el sensor infrarrojo para lleno/vacío
+        -- Salidas
+        alarma          : buffer std_logic;      
+        llenar_agua     : out std_logic;      
+        vaciar_agua     : out std_logic;      
+        velocidad_disp  : out std_logic_vector(6 downto 0);  
+        direccion_disp  : out std_logic_vector(6 downto 0);  
+        seg_disp        : out std_logic_vector(6 downto 0);  
+        ten_disp        : out std_logic_vector(6 downto 0);
+	     beep            : out std_logic;       -- Señal para el buzzer
+	   -- Pines para controladores L298N
+        IN1_Llenado     : out std_logic;
+        IN2_Llenado     : out std_logic;
+        EN_Llenado      : out std_logic;
+        IN1_Vaciado     : out std_logic;
+        IN2_Vaciado     : out std_logic;
+        EN_Vaciado      : out std_logic;
+        IN1_Tambor      : out std_logic;
+        IN2_Tambor      : out std_logic;
+        EN_Tambor       : out std_logic
+    );
+end entity;
+
+architecture Behavioral of lavadora27 is
+    -- Señales internas
+    signal clk_1Hz         : std_logic;
+    signal ciclo           : std_logic_vector(2 downto 0);
+    signal tiempo_unidades : std_logic_vector(3 downto 0);
+    signal tiempo_decenas  : std_logic_vector(3 downto 0);
+    signal direccion       : std_logic;
+    signal velocidad       : std_logic;
+    signal tapa_cerrada    : std_logic;   -- Señal generada por el sensor infrarrojo de la tapa
+    signal lleno_vacio     : std_logic;   -- Señal generada por el sensor infrarrojo para lleno/vacío
+    signal internal_reset  : std_logic;
+    signal habilitar_v     : std_logic;
+    signal habilitar_d     : std_logic;
+    signal habilitar_tiempo: std_logic;
+    signal habilitar_con   : std_logic;
+	 signal tiempo_rom      : std_logic_vector(3 downto 0);
+	 signal tiempo_operacion : std_logic_vector(3 downto 0); -- Tiempo de operación de cada estado
+    signal finalizado      : std_logic;  -- Señal de finalización desde contador27
+	 signal beep_internal   : std_logic;  -- Señal interna para el buzzer
+	 -- Señales de control para motores generadas por ciclo_operacion27
+    signal motor_llenado   : std_logic;
+    signal motor_vaciado   : std_logic;
+    signal motor_tambor    : std_logic;
+	 
+begin
+
+    -- Instancia del divisor de frecuencia (de 50 MHz a 1 Hz)
+    u0: entity lava27.divisordefrecuencia24
+        port map (
+            clk    => clk_50MHz,
+            clk1Hz => clk_1Hz
+        );
+
+    -- Instancia del ciclo de operación
+    u1: entity lava27.ciclo_operacion27
+        port map (
+            encendido           => encendido,
+            lleno_vacio         => lleno_vacio,
+            tapa_cerrada        => tapa_cerrada,
+            clk                 => clk_1Hz,
+            finalizado          => finalizado,      -- Señal de finalización desde contador27
+            ciclo               => ciclo,
+            alarma              => alarma,
+            direccion           => direccion,
+            velocidad           => velocidad,
+            habilitar_velocidad => habilitar_v,
+            habilitar_direccion => habilitar_d,
+            habilitar_displays  => habilitar_tiempo,
+            habilitar_contador  => habilitar_con,
+				tiempo_rom          => tiempo_rom,    -- Conectar la salida de ROM
+            tiempo_operacion    => tiempo_operacion,  -- Tiempo de operación de cada estado
+				
+				-- Conexión de control de motores
+            motor_llenado  => motor_llenado,
+            motor_vaciado  => motor_vaciado,
+            motor_tambor   => motor_tambor
+            
+        );
+
+    -- Instancia del contador de tiempo
+    u2: entity lava27.contador27
+        port map (
+            Clock     => clk_1Hz,
+            Reset     => habilitar_con,
+            EN        => tapa_cerrada,
+            Load      => encendido,
+            CNT_in    => tiempo_operacion,     -- Tiempo de operación del estado actual
+            CNT_units => tiempo_unidades,      -- Unidades para el display
+            CNT_tens  => tiempo_decenas,       -- Decenas para el display
+            finalizado => finalizado           -- Señal de finalización al ciclo_operacion27
+        );
+
+    -- Instancia del decodificador de 7 segmentos para las unidades
+    u3: entity lava27.decodificador_7_segmentos24
+        port map (
+            bin_in  => tiempo_unidades,
+            habilitar => habilitar_tiempo,
+            seg_out => seg_disp
+        );
+
+    -- Instancia del decodificador de 7 segmentos para las decenas
+    u4: entity lava27.decodificador_7_segmentos24
+        port map (
+            bin_in  => tiempo_decenas,
+            habilitar => habilitar_tiempo,
+            seg_out => ten_disp
+        );
+
+    -- Instancia del decodificador de 7 segmentos para la velocidad
+    u5: entity lava27.decodificadorlh27
+        port map (
+            velocidad => velocidad,
+            habilitar => habilitar_v,
+            seg_out   => velocidad_disp
+        );
+
+    -- Instancia del decodificador de 7 segmentos para la dirección
+    u6: entity lava27.decodificadorid27
+        port map (
+            direccion => direccion,
+            habilitar => habilitar_d,
+            seg_out   => direccion_disp
+        );
+	  -- Instancia del sensor infrarrojo para la tapa
+    u7: entity lava27.infrared_tapa
+        port map (
+            sensorin_tapa  => sensorin_tapa,   -- Entrada desde el puerto `sensorin_tapa`
+            tapa_cerrada => tapa_cerrada     -- Conectado a la señal interna `tapa_cerrada`
+        );
+
+    -- Instancia del sensor infrarrojo para lleno/vacío
+    u8: entity lava27.infrared_lleno
+        port map (
+            sensorin_lleno  => sensorin_lleno,  -- Entrada desde el puerto `sensorin_lleno`
+            lleno_vacio => lleno_vacio      -- Conectado a la señal interna `lleno_vacio`
+        );
+		  
+     -- Instancia del buzzer
+    u9_BUZZER: entity lava27.BUZZER
+        port map (
+            CLK     => clk_50MHz,
+            RESET   => not alarma,  -- Activa el buzzer cuando `alarma` está activa
+            BEEP    => beep_internal
+        );
+	  -- Instancia del motor de tambor usando señales de ciclo_operacion27
+    u10: entity lava27.MOTOR_TAMBOR
+        port map (
+            CLK       => clk_50MHz,
+            enable    => motor_tambor,
+            direction => direccion ,
+            velocidad => velocidad,
+            IN1_Tambor   => IN1_Tambor,
+            IN2_Tambor   => IN2_Tambor,
+            EN_Tambor    => EN_Tambor
+        );
+
+    -- Instancia del motor de llenado controlado por motor_llenado
+    u11: entity lava27.MOTOR_LLENADO
+        port map (
+            CLK       => clk_50MHz,
+            enable    => motor_llenado,
+            direction => '0' ,
+            velocidad => '1',
+            IN1_Llenado   => IN1_Llenado,
+            IN2_Llenado   => IN2_Llenado,
+            EN_Llenado    => EN_Llenado
+        );
+
+    -- Instancia del motor de vaciado controlado por motor_vaciado
+    u12: entity lava27.MOTOR_VACIADO
+        port map (
+            CLK       => clk_50MHz,
+            enable    => motor_vaciado,
+            direction => '0' ,
+            velocidad => '1',
+            IN1_Vaciado   => IN1_Vaciado,
+            IN2_Vaciado   => IN2_Vaciado,
+            EN_Vaciado    => EN_Vaciado 
+        );
+
+     -- Instancia de la ROM
+    u13_ROM: entity lava27.ROM
+        port map (
+            address => ciclo,
+            data_out => tiempo_rom
+        );
+	 
+    
+    -- Asignación de salida
+    beep <= beep_internal;  -- Asignación de la señal interna `beep_internal` a la salida `beep`
+	 
+    -- Señales de llenado y vaciado de agua
+    llenar_agua <= '1' when ciclo = "001" else '0';
+    vaciar_agua <= '1' when ciclo = "011" else '0';
+
+end Behavioral;
